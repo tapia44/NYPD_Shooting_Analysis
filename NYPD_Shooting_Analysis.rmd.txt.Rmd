@@ -1,0 +1,111 @@
+---
+title: "NYPD Shooting Final"
+author: "Julio Tapia"
+date: "2025-02-28"
+output:
+  pdf_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, warning=FALSE, message=FALSE)
+library(tidyverse)
+library(lubridate)
+library(ggplot2)
+```
+
+## Importing the Data
+
+```{r import_data, message=FALSE}
+# URL for the dataset
+nypd_data_url <- "https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD"
+
+# Load the dataset
+df <- read_csv(nypd_data_url)
+```
+
+## Data Preprocessing
+
+```{r clean_data}
+# Convert date column to proper format
+df <- df %>%
+  mutate(OCCUR_DATE = mdy(OCCUR_DATE),
+         Year = year(OCCUR_DATE),
+         Month = month(OCCUR_DATE, label = FALSE)) # Ensure Month is numeric
+
+# Standardizing victim age groups
+df <- df %>%
+  mutate(VIC_AGE_GROUP = recode(VIC_AGE_GROUP,
+                                "<18" = "Under 18",
+                                "18-24" = "18-24",
+                                "25-44" = "25-44",
+                                "45-64" = "45-64",
+                                "65+" = "65+",
+                                "UNKNOWN" = "Unknown"))
+```
+
+## Visualization 1: Shooting Incidents Over Time
+
+```{r lineplot_shootings, echo=FALSE}
+shooting_trend <- df %>%
+  count(Year, Month) %>%
+  arrange(Year, Month)
+
+ggplot(shooting_trend, aes(x = as.Date(paste(Year, Month, "01", sep = "-")), y = n)) +
+  geom_line(color = "blue") +
+  labs(title = "NYPD Shooting Incidents Over Time",
+       x = "Year",
+       y = "Number of Incidents") +
+  theme_minimal()
+```
+
+## Visualization 2: Shootings by Borough
+
+```{r barplot_borough, echo=FALSE}
+borough_count <- df %>% count(BORO) %>% filter(!is.na(BORO))
+
+ggplot(borough_count, aes(x = reorder(BORO, -n), y = n, fill = BORO)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Number of Shootings by Borough",
+       x = "Borough",
+       y = "Number of Incidents") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set2")
+```
+
+## Visualization 3: Victim Demographics (Age Group)
+
+```{r barplot_victim_age, echo=FALSE}
+victim_age_dist <- df %>% count(VIC_AGE_GROUP) %>% filter(!is.na(VIC_AGE_GROUP))
+
+ggplot(victim_age_dist, aes(x = reorder(VIC_AGE_GROUP, -n), y = n, fill = VIC_AGE_GROUP)) +
+  geom_bar(stat = "identity") +
+  labs(title = "Victim Age Group Distribution",
+       x = "Age Group",
+       y = "Number of Victims") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Set1") +
+  coord_flip()
+```
+
+## Visualization 4: Shootings by Month
+
+```{r barplot_monthly_trends, echo=FALSE}
+monthly_trend <- df %>% count(Month) %>% arrange(Month)
+
+ggplot(monthly_trend, aes(x = factor(Month, levels = 1:12, labels = month.abb), y = n, fill = factor(Month))) +
+  geom_bar(stat = "identity") +
+  labs(title = "NYPD Shooting Incidents by Month",
+       x = "Month",
+       y = "Number of Incidents") +
+  theme_minimal() +
+  scale_fill_brewer(palette = "Blues")
+```
+
+## Conclusion
+
+- **Trends Over Time:** Incidents fluctuate yearly, with noticeable spikes in certain periods.
+- **Borough Impact:** Brooklyn and the Bronx see the highest incidents, while Staten Island has the lowest.
+- **Victim Demographics:** Young adults (18-44) are most affected.
+- **Seasonal Trends:** Shootings peak in summer (June-August) and drop in winter.
+
+**This analysis demonstrates how data science can uncover crime patterns, helping policymakers allocate resources effectively.**
